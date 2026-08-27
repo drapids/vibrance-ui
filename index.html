@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BDL - le geeked hippo</title>
+<style>
+  :root {
+    --bg: #2b1f1f;
+    --text: #ffb7c5;
+    --accent: #ffb7c5;
+    --subtitle: #b8959c;
+    --panel: rgba(0,0,0,0.55);
+    --tab-active: #3b2f2f;
+    --slider-track: rgba(255,183,197,0.3);
+    --titlebar-bg: #1a1212;
+    --gradient-start: #2b1f1f;
+    --gradient-end: #1a1212;
+    --border-radius: 4px;
+    --transition-fast: 0.15s ease;
+    --transition-smooth: 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    user-select: none;
+    height: 100vh;
+    position: relative;
+    border-radius: var(--border-radius);
+    font-size: 13px;
+  }
+
+  canvas#particles {
+    position: absolute; top:0; left:0; width:100%; height:100%;
+    pointer-events: none; z-index:0;
+  }
+
+  .titlebar {
+    height: 28px;
+    background: var(--titlebar-bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    -webkit-app-region: drag;
+    z-index: 10;
+    position: relative;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .titlebar .title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    color: var(--text);
+    opacity: 0.9;
+    text-transform: uppercase;
+  }
+  .titlebar .controls {
+    display: flex;
+    gap: 6px;
+    -webkit-app-region: no-drag;
+  }
+  .titlebar .controls button {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    width: 24px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition-fast), transform var(--transition-fast);
+    border-radius: 2px;
+  }
+  .titlebar .controls button:hover { background: rgba(255,255,255,0.1); }
+  .titlebar .controls button:active { transform: scale(0.92); }
+  .titlebar .controls #close-btn:hover { background: #e81123; color: white; }
+
+  .app {
+    position: relative;
+    width: 100vw;
+    height: calc(100vh - 28px);
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 8px 0;
+    z-index: 1;
+  }
+  h1 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 0;
+    text-shadow: none;
+  }
+  h1 span {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--subtitle);
+    margin-left: 6px;
+    text-shadow: none;
+  }
+  .fps-counter {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    background: rgba(0,0,0,0.5);
+    box-shadow: none;
+    border-radius: 2px;
+  }
+
+  nav {
+    display: flex;
+    gap: 4px;
+    padding: 0 8px;
+    z-index: 1;
+    margin-top: 4px;
+  }
+  nav button {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    padding: 5px 14px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-weight: 500;
+    opacity: 0.7;
+    border-radius: 2px 2px 0 0;
+  }
+  nav button.active {
+    background: var(--tab-active);
+    font-weight: 600;
+    opacity: 1;
+    box-shadow: none;
+  }
+
+  main {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    background: var(--panel);
+    margin: 0;
+    z-index: 1;
+    position: relative;
+    border-radius: 2px;
+    box-shadow: none;
+    animation: fadeIn var(--transition-smooth);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .reset-btn {
+    margin-top: 10px;
+    padding: 6px 16px;
+    border: none;
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    box-shadow: none;
+    letter-spacing: 0.2px;
+    width: 100%;
+    border-radius: 2px;
+    font-size: 0.8rem;
+  }
+  .reset-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .reset-btn:active { transform: scale(0.97); box-shadow: none; }
+
+  .slider-container {
+    margin-bottom: 8px;
+    background: transparent;
+    padding: 4px 0;
+    border-radius: 0;
+    box-shadow: none;
+    transition: transform var(--transition-fast);
+  }
+  .slider-container:hover {
+    transform: translateX(2px);
+  }
+  .label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    margin-bottom: 2px;
+    font-weight: 500;
+  }
+  .val {
+    font-weight: 600;
+    background: var(--accent);
+    color: var(--bg);
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 0.65rem;
+    transition: transform var(--transition-fast);
+  }
+  .dragging .val { transform: scale(1.08); }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    border-radius: 0;
+    background: var(--slider-track);
+    outline: none;
+    cursor: pointer;
+    transition: height var(--transition-fast);
+  }
+  input[type=range]:hover { height: 4px; }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 6px var(--accent);
+    transition: transform var(--transition-fast);
+  }
+  .dragging input[type=range]::-webkit-slider-thumb {
+    transform: scale(1.25);
+  }
+
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.75rem;
+    background: transparent;
+    padding: 4px 0;
+    border-radius: 0;
+    transition: transform var(--transition-fast);
+  }
+  .toggle-row:hover { transform: translateX(2px); }
+  .switch {
+    width: 30px;
+    height: 16px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.25);
+    position: relative;
+    transition: background var(--transition-fast);
+  }
+  .switch.on { background: var(--accent); }
+  .knob {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: left var(--transition-fast);
+  }
+  .on .knob { left: 16px; }
+
+  select {
+    padding: 4px 8px;
+    border-radius: 2px;
+    border: none;
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    width: 100%;
+    margin-bottom: 8px;
+    font-size: 0.7rem;
+    outline: none;
+    transition: background var(--transition-fast);
+  }
+  select:hover { background: rgba(255,255,255,0.15); }
+
+  #preset-list {
+    margin-bottom: 8px;
+  }
+  .preset-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0,0,0,0.3);
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    border-radius: 2px;
+    font-size: 0.75rem;
+  }
+  .preset-item button {
+    background: var(--accent);
+    border: none;
+    color: var(--bg);
+    padding: 2px 8px;
+    font-size: 0.65rem;
+    cursor: pointer;
+    border-radius: 2px;
+    margin-left: 6px;
+  }
+  .preset-item button:hover { opacity: 0.8; }
+  input[type="text"] {
+    padding: 4px 8px;
+    border-radius: 2px;
+    border: none;
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    width: 100%;
+    margin-bottom: 8px;
+    font-size: 0.7rem;
+    outline: none;
+  }
+  #gpuVendorDisplay {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="titlebar">
+  <div class="title">BDL - le geeked hippo</div>
+  <div class="controls">
+    <button id="min-btn">&#x2013;</button>
+    <button id="hide-btn" title="Hide to tray">&#x25BC;</button>
+    <button id="close-btn">&#x2715;</button>
+  </div>
+</div>
+
+<div class="app">
+  <canvas id="particles"></canvas>
+  <header>
+    <h1>BDL <span>by le geeked hippo</span></h1>
+    <div class="fps-counter" id="fps">FPS: 0</div>
+  </header>
+  <nav>
+    <button class="active" data-tab="home">Home</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+
+  <main id="home-tab">
+    <div class="slider-container" data-id="brightness">
+      <div class="label-row"><span>Brightness</span><span class="val">100</span></div>
+      <input type="range" min="0" max="300" value="100">
+    </div>
+    <div class="slider-container" data-id="contrast">
+      <div class="label-row"><span>Contrast</span><span class="val">100</span></div>
+      <input type="range" min="0" max="500" value="100">
+    </div>
+    <div class="slider-container" data-id="gamma">
+      <div class="label-row"><span>Gamma</span><span class="val">1.0</span></div>
+      <input type="range" min="10" max="300" value="100">
+    </div>
+    <div class="slider-container" data-id="vibrancy">
+      <div class="label-row"><span>Vibrancy</span><span class="val">100</span></div>
+      <input type="range" min="0" max="500" value="100">
+    </div>
+    <div class="slider-container" data-id="saturation">
+      <div class="label-row"><span>Saturation</span><span class="val">100</span></div>
+      <input type="range" min="0" max="500" value="100">
+    </div>
+    <div class="toggle-row" data-id="cancelDarkness">
+      <span>Cancel Darkness</span>
+      <div class="switch"><div class="knob"></div></div>
+    </div>
+    <div class="slider-container" data-id="darknessBoost" style="display:none">
+      <div class="label-row"><span>Darkness Boost</span><span class="val">0</span></div>
+      <input type="range" min="0" max="200" value="0">
+    </div>
+    <button class="reset-btn" id="resetBtn">Reset</button>
+  </main>
+
+  <main id="settings-tab" style="display:none">
+    <h3 style="margin-bottom:6px; font-size:0.8rem; font-weight:600;">Theme</h3>
+    <select id="themeSelect">
+      <option value="ocean">Ocean</option>
+      <option value="cherry">Cherry</option>
+      <option value="winter">Winter</option>
+      <option value="matrix">Matrix</option>
+      <option value="sunset">Sunset</option>
+      <option value="cyberpunk">Cyberpunk</option>
+      <option value="midnight">Midnight</option>
+      <option value="forest">Forest</option>
+      <option value="candy">Candy</option>
+      <option value="crimson">Crimson</option>
+      <option value="nebula">Nebula</option>
+      <option value="lavender">Lavender</option>
+      <option value="synthwave">Synthwave</option>
+    </select>
+
+    <h3 style="margin-bottom:6px; font-size:0.8rem; font-weight:600;">Effects</h3>
+    <div class="toggle-row" data-id="particlesEnabled">
+      <span>Particles</span>
+      <div class="switch on"><div class="knob"></div></div>
+    </div>
+    <div class="toggle-row" data-id="screenshareMode">
+      <span>Screenshare Mode</span>
+      <div class="switch"><div class="knob"></div></div>
+    </div>
+    <p id="gpuVendorDisplay">GPU: Unknown</p>
+
+    <h3 style="margin-bottom:6px; font-size:0.8rem; font-weight:600;">Presets</h3>
+    <div id="preset-list"></div>
+    <input type="text" id="presetName" placeholder="Preset name">
+    <button class="reset-btn" id="savePresetBtn">Save Current as Preset</button>
+
+    <h3 style="margin-bottom:6px; font-size:0.8rem; font-weight:600;">Sound</h3>
+    <div class="slider-container" data-id="volume">
+      <div class="label-row"><span>Volume</span><span class="val">80</span></div>
+      <input type="range" min="0" max="100" value="80">
+    </div>
+    <div class="toggle-row" data-id="soundEnabled">
+      <span>Sound Effects</span>
+      <div class="switch on"><div class="knob"></div></div>
+    </div>
+
+    <button class="reset-btn" id="resetSettingsBtn">Reset All</button>
+  </main>
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>
